@@ -1,0 +1,16 @@
+# Production deployment (Coolify: "Docker Compose" build pack, this file).
+# Locally, `docker compose up --build` also loads docker-compose.override.yml,
+# which publishes the port.
+services:
+  embeds:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Reachable through the platform's proxy (Coolify: set the domain on this
+    # service, port 3000). Not published on the host, so several projects can
+    # share a server.
+    expose:
+      - "3000"
+    # NODE_ENV, PORT (3000) and the healthcheck come from the image.
+    # No persistent data: the bundle and the demo pages are built into the image.
+    restart: unless-stopped

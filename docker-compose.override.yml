@@ -1,0 +1,7 @@
+# Local overrides, loaded automatically by `docker compose up` on your machine.
+# Not used in production: Coolify deploys docker-compose.yml only.
+services:
+  embeds:
+    # Publish the server on localhost (PORT changes the host port: PORT=3002 docker compose up)
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"

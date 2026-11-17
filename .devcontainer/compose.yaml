@@ -1,0 +1,16 @@
+# Devcontainer service, used by VS Code ("Reopen in Container") and by .devcontainer/up.
+# Same Node 26 / Alpine / musl base as the production image (debrainpacks).
+# Ports: VS Code forwards them (devcontainer.json → forwardPorts); .devcontainer/up
+# publishes them with compose.ports.yaml.
+services:
+  dev:
+    image: ghcr.io/debrain-dev/debrainpacks:26-dev
+    init: true
+    volumes:
+      - ..:/workspace:cached
+      # pnpm store, kept across container rebuilds
+      - pnpm-store:/home/node/.local/share/pnpm/store
+    command: ["sleep", "infinity"]
+
+volumes:
+  pnpm-store:

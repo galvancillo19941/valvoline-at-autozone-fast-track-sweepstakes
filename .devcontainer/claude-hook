@@ -1,0 +1,47 @@
+#!/bin/sh
+# .devcontainer/claude-hook — Claude Code PreToolUse hook for Bash (see .claude/settings.json)
+#
+# Claude Code runs on the host. This hook hands each Bash call to
+# debrainpacks-claude-hook inside the project's container, which rewrites it to
+# `.devcontainer/run '<command>'` so it executes there. If the container isn't
+# running yet, it starts it first (.devcontainer/up). Only needs sh + docker.
+here=$(cd "$(dirname "$0")" && pwd -P)
+
+docker=$(command -v docker 2>/dev/null \
+  || ls /usr/local/bin/docker /opt/homebrew/bin/docker "$HOME/.orbstack/bin/docker" \
+       "$HOME/.docker/bin/docker" 2>/dev/null | head -1)
+
+find_container() {
+  [ -n "$docker" ] && "$docker" ps -q \
+    --filter "label=com.docker.compose.project.working_dir=$here" \
+    --filter "label=com.docker.compose.service=dev" 2>/dev/null | head -1
+}
+
+input=$(cat)
+ctr=$(find_container)
+
+if [ -z "$ctr" ]; then
+  # Host-only commands don't need the container
+  first=$(printf '%s' "$input" | sed -n 's/.*"command" *: *"\([^"\\ ]*\).*/\1/p' | head -1)
+  case "${first##*/}" in
+    git|gh|docker|open|code|zed|cursor|claude|brew|ssh|scp|DEBRAIN_HOST=1) exit 0 ;;
+  esac
+  # The project's own .devcontainer/ scripts (run, up, down...) run on the host
+  case "$first" in .devcontainer/*|*/.devcontainer/*) exit 0 ;; esac
+
+  # Start it (or wait for the start already in progress) and continue
+  if ! "$here/up" >> "$here/.up.log" 2>&1; then
+    echo "The project environment (Docker container) could not be started, so this command was not run. Last lines of .devcontainer/.up.log:" >&2
+    tail -n 5 "$here/.up.log" >&2
+    echo "If Docker is missing or stopped, ask the user to install/start OrbStack or Docker Desktop. Don't install Node, pnpm or vp on the host." >&2
+    exit 2
+  fi
+  ctr=$(find_container)
+fi
+
+# Container up but .devcontainer/up still working (installing dependencies,
+# starting the dev servers): wait for it so the command sees a ready project
+waited=0
+while [ -d "$here/.up.lock" ] && [ "$waited" -lt 900 ]; do sleep 1; waited=$((waited + 1)); done
+
+printf '%s' "$input" | "$docker" exec -i -e DEBRAIN_RUN_SCRIPT="$here/run" "$ctr" debrainpacks-claude-hook

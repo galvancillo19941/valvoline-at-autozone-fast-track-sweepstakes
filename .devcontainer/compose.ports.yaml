@@ -1,0 +1,7 @@
+# Published ports when the devcontainer is started with .devcontainer/up (no VS Code).
+# Running two projects at once? Change the host side: DEV_PORT=5174 API_PORT=3002 .devcontainer/up
+services:
+  dev:
+    ports:
+      - "127.0.0.1:${DEV_PORT:-5173}:5173" # Vite dev server
+      - "127.0.0.1:${API_PORT:-3000}:3000" # Express (pnpm serve)

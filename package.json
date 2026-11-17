@@ -1,0 +1,48 @@
+{
+  "name": "debrain-ai-embeds-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Boilerplate for building embeddable web components with Lit (no shadow DOM), SCSS, Vite, and Express.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:start": "debrainpacks-services start",
+    "dev:stop": "debrainpacks-services stop",
+    "dev:restart": "debrainpacks-services restart",
+    "dev:status": "debrainpacks-services status",
+    "dev:logs": "debrainpacks-services logs",
+    "share": "debrainpacks-share",
+    "build": "pnpm typecheck && vite build && tsx scripts/build-demo-html.ts",
+    "serve": "tsx server/index.ts",
+    "start": "pnpm build && pnpm serve",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt . --check",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "lit": "^3.3.3",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "oxfmt": "^0.74.0",
+    "oxlint": "^1.89.0",
+    "sass": "^1.106.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

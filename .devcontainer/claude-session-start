@@ -1,0 +1,29 @@
+#!/bin/sh
+# .devcontainer/claude-session-start — Claude Code SessionStart hook (see .claude/settings.json)
+#
+# Gets the project going as soon as a session opens, in the background so the
+# session isn't delayed: starts the container and then the dev servers
+# (debrainpacks-services). Set DEBRAIN_NO_AUTOSTART=1 to start only the container.
+# Whatever this prints is added to Claude's context.
+here=$(cd "$(dirname "$0")" && pwd -P)
+cat >/dev/null # hook input (unused)
+
+docker=$(command -v docker 2>/dev/null \
+  || ls /usr/local/bin/docker /opt/homebrew/bin/docker "$HOME/.orbstack/bin/docker" \
+       "$HOME/.docker/bin/docker" 2>/dev/null | head -1)
+
+if [ -z "$docker" ] || ! "$docker" info >/dev/null 2>&1; then
+  echo "[project environment] Docker is not installed or not running on this machine. This project's commands run in a Docker container, so nothing can run yet: ask the user to install OrbStack (https://orbstack.dev) or Docker Desktop and start it. Do not install Node, pnpm or vp on the host."
+  exit 0
+fi
+
+# Background: the Bash hook waits for it (up's lock) if a command comes first.
+# DEBRAIN_AUTOSTART makes up start the dev servers inside that same lock.
+if [ -n "${DEBRAIN_NO_AUTOSTART:-}" ]; then
+  nohup "$here/up" >> "$here/.up.log" 2>&1 &
+else
+  DEBRAIN_AUTOSTART=1 nohup "$here/up" >> "$here/.up.log" 2>&1 &
+fi
+
+echo "[project environment] Starting the project's container${DEBRAIN_NO_AUTOSTART:+ (dev servers not autostarted)}${DEBRAIN_NO_AUTOSTART:- and then its dev servers} in the background (the first time it downloads the image, ~1 GB, and installs dependencies). Bash commands wait for the container automatically. Check the dev servers with the dev:status script (it prints the URLs to give the user) and their output with dev:logs; start/stop/restart them yourself with dev:start / dev:stop / dev:restart."
+exit 0

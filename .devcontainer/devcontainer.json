@@ -1,0 +1,17 @@
+{
+  "name": "${localWorkspaceFolderBasename}",
+  "dockerComposeFile": "compose.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "node",
+  "forwardPorts": [5173, 3000],
+  "postCreateCommand": "sh .devcontainer/post-create.sh",
+  // Keep the container running after the editor closes: Claude Code on the host
+  // runs its commands in it through .devcontainer/run
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": ["runem.lit-plugin", "oxc.oxc-vscode"]
+    }
+  }
+}

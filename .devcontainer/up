@@ -1,0 +1,89 @@
+#!/bin/sh
+# .devcontainer/up — start this project's container (idempotent)
+#
+# Claude Code calls it on its own (SessionStart hook, and before the first
+# command if needed), so users only need Docker. Also usable by hand; VS Code's
+# "Reopen in Container" reaches the same container.
+#
+# - Picks free host ports (5173 / the API port, or the next free ones) unless
+#   DEV_PORT / API_PORT are set, and records them in .devcontainer/.ports
+# - Installs dependencies the first time (post-create.sh)
+# - Safe to run concurrently: a lock makes other callers wait for the first one
+# - DEBRAIN_AUTOSTART=1 also starts the dev servers (debrainpacks-services)
+# Stop the container with .devcontainer/down
+set -eu
+
+here=$(cd "$(dirname "$0")" && pwd -P)
+project=$(dirname "$here")
+# Container port of the API / Express server (3001 monorepo, 3000 embeds)
+api_container_port=$(cat "$here/api-port")
+
+docker=$(command -v docker 2>/dev/null \
+  || ls /usr/local/bin/docker /opt/homebrew/bin/docker "$HOME/.orbstack/bin/docker" \
+       "$HOME/.docker/bin/docker" 2>/dev/null | head -1) || true
+if [ -z "$docker" ] || ! "$docker" info >/dev/null 2>&1; then
+  echo "[devcontainer] Docker is not installed or not running. Install OrbStack (https://orbstack.dev) or Docker Desktop and start it." >&2
+  exit 69
+fi
+
+# Same project name VS Code uses for this folder, so both reach the same container
+name=$(basename "$project" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-\n' '-')_devcontainer
+compose() { "$docker" compose -p "$name" -f "$here/compose.yaml" -f "$here/compose.ports.yaml" "$@"; }
+
+running() {
+  [ -n "$("$docker" ps -q \
+    --filter "label=com.docker.compose.project.working_dir=$here" \
+    --filter "label=com.docker.compose.service=dev" 2>/dev/null)" ]
+}
+ready() { running && "$here/run" 'test -f ~/.debrainpacks-post-create' >/dev/null 2>&1; }
+
+# ── Lock: one starter at a time, the others wait for it ───────────────────────
+lock="$here/.up.lock"
+waited=0
+until mkdir "$lock" 2>/dev/null; do
+  # A lock older than 20 minutes belongs to a starter that died
+  if [ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ]; then rmdir "$lock" 2>/dev/null || true; continue; fi
+  [ "$waited" -eq 0 ] && echo "[devcontainer] another start is in progress, waiting…"
+  sleep 2
+  waited=$((waited + 2))
+done
+trap 'rmdir "$lock" 2>/dev/null || true' EXIT
+trap 'exit 130' INT TERM
+
+if ready; then
+  echo "[devcontainer] already running."
+else
+  if ! running; then
+    # ── Free host ports ─────────────────────────────────────────────────────
+    port_busy() {
+      if command -v nc >/dev/null 2>&1; then nc -z 127.0.0.1 "$1" >/dev/null 2>&1
+      elif command -v lsof >/dev/null 2>&1; then lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+      else return 1; fi
+    }
+    pick() { p=$1; while port_busy "$p" || [ "$p" = "${2:-}" ]; do p=$((p + 1)); done; echo "$p"; }
+    DEV_PORT=${DEV_PORT:-$(pick 5173)}
+    API_PORT=${API_PORT:-$(pick "$api_container_port" "$DEV_PORT")}
+    export DEV_PORT API_PORT
+
+    echo "[devcontainer] starting (the first time this downloads the image, ~1 GB)…"
+    compose up -d --wait
+  fi
+  # First start of this container: install dependencies (post-create.sh leaves a marker)
+  "$here/run" 'test -f ~/.debrainpacks-post-create || sh .devcontainer/post-create.sh'
+fi
+
+# Record the host ports actually published, for the user and for Claude
+dev=$(compose port dev 5173 2>/dev/null | sed 's/.*://') || true
+api=$(compose port dev "$api_container_port" 2>/dev/null | sed 's/.*://') || true
+printf 'DEV_PORT=%s\nAPI_PORT=%s\n' "$dev" "$api" > "$here/.ports"
+
+# Dev servers too (SessionStart sets this), still inside the lock: whoever waits
+# for the environment gets it with the servers already running
+if [ -n "${DEBRAIN_AUTOSTART:-}" ]; then
+  "$here/run" debrainpacks-services start || echo "[devcontainer] the dev servers did not start; see: debrainpacks-services logs"
+fi
+
+echo "[devcontainer] ready. Run commands with: .devcontainer/run <command>"
+[ -n "$dev" ] && echo "[devcontainer] dev server (once started) → http://localhost:$dev"
+[ -n "$api" ] && echo "[devcontainer] port $api_container_port in the container       → http://localhost:$api"
+exit 0

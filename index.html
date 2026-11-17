@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DĚBRAIN Embeds — Build embeddable web components</title>
+    <meta
+      name="description"
+      content="DĚBRAIN Embeds — boilerplate for shipping Lit-powered custom elements that drop into any third-party page with a single script tag."
+    />
+    <meta property="og:title" content="DĚBRAIN Embeds" />
+    <meta
+      property="og:description"
+      content="Boilerplate for shipping Lit-powered custom elements that drop into any third-party page."
+    />
+    <style>
+      :root {
+        --white: #ffffff;
+        --n-50: #fafafa;
+        --n-100: #f5f5f5;
+        --n-200: #e5e5e5;
+        --n-300: #d4d4d4;
+        --n-400: #a3a3a3;
+        --n-500: #737373;
+        --n-600: #525252;
+        --n-700: #404040;
+        --n-800: #262626;
+        --n-900: #171717;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background: var(--white);
+        color: var(--n-800);
+        line-height: 1.5;
+        position: relative;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Background trama (top-right) */
+      .trama {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 280px;
+        opacity: 0.06;
+        mix-blend-mode: multiply;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      /* Plant decoration (bottom-left) */
+      .plants {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 18rem;
+        opacity: 0.35;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      /* Hero */
+      header.hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 5rem 1.5rem 4rem;
+        text-align: center;
+      }
+      .logo-mark {
+        width: 44px;
+        height: 44px;
+        margin-bottom: 1.25rem;
+        opacity: 0.9;
+      }
+      h1 {
+        font-size: 1.875rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--n-900);
+        margin: 0 0 0.75rem;
+      }
+      .hero-sub {
+        font-size: 1rem;
+        color: var(--n-500);
+        max-width: 28rem;
+        line-height: 1.65;
+        margin: 0;
+      }
+
+      /* Main column */
+      main {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 0 1.5rem 4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 4rem;
+        position: relative;
+        z-index: 1;
+      }
+      section {
+        position: relative;
+      }
+
+      /* Eyebrow */
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--n-400);
+        margin: 0 0 1.5rem;
+      }
+      .eyebrow-tight {
+        margin-bottom: 0.5rem;
+      }
+      .section-sub {
+        font-size: 0.875rem;
+        color: var(--n-500);
+        margin: 0 0 1.25rem;
+      }
+
+      /* Card */
+      .card {
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        border: 1px solid var(--n-100);
+        background: var(--white);
+        transition:
+          border-color 200ms ease,
+          box-shadow 200ms ease;
+      }
+      .card:hover {
+        border-color: var(--n-200);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .card-soft {
+        background: rgba(250, 250, 250, 0.6);
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+      @media (min-width: 640px) {
+        .grid-2 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      /* Live demo card */
+      .demo-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 14px;
+        border: 1px solid var(--n-100);
+        background: var(--white);
+      }
+      .demo-link {
+        font-size: 0.875rem;
+        color: var(--n-500);
+        margin: 0.75rem 0 0;
+      }
+      .demo-link a {
+        color: var(--n-700);
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 1px solid var(--n-300);
+        padding-bottom: 1px;
+        transition: border-color 150ms ease;
+      }
+      .demo-link a:hover {
+        border-bottom-color: var(--n-700);
+      }
+
+      /* Stack/Endpoint card content */
+      .item {
+        display: flex;
+        gap: 0.85rem;
+        align-items: flex-start;
+      }
+      .item-icon {
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+        margin-top: 0.2rem;
+        color: var(--n-400);
+      }
+      .item-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+      }
+      .item-title {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .item-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--n-800);
+      }
+      .item-tag {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 10px;
+        color: var(--n-400);
+      }
+      .item-note {
+        font-size: 0.8125rem;
+        color: var(--n-500);
+        line-height: 1.55;
+        margin: 0;
+      }
+
+      /* Code */
+      code {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 0.85em;
+        background: var(--n-100);
+        padding: 0.1rem 0.375rem;
+        border-radius: 4px;
+        color: var(--n-700);
+      }
+      pre {
+        background: var(--n-900);
+        color: #e5e5e5;
+        padding: 1rem 1.15rem;
+        border-radius: 10px;
+        overflow-x: auto;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        margin: 0;
+      }
+      pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+        font-size: inherit;
+      }
+
+      /* Tables (API) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8125rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.625rem 0.75rem;
+        border-bottom: 1px solid var(--n-100);
+        vertical-align: top;
+        color: var(--n-600);
+      }
+      th {
+        font-weight: 600;
+        color: var(--n-500);
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        background: var(--n-50);
+      }
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Mode banner */
+      .mode-banner {
+        font-size: 0.8125rem;
+        color: var(--n-500);
+        padding: 0.65rem 0.95rem;
+        background: var(--n-50);
+        border: 1px solid var(--n-100);
+        border-radius: 8px;
+        margin: 0 0 1rem;
+      }
+      .mode-banner strong {
+        color: var(--n-800);
+        font-weight: 600;
+      }
+
+      /* Inline note */
+      .note {
+        font-size: 0.8125rem;
+        color: var(--n-500);
+        line-height: 1.6;
+        padding: 0.85rem 1rem;
+        background: var(--n-50);
+        border: 1px solid var(--n-100);
+        border-radius: 10px;
+        margin-top: 1rem;
+      }
+      .note strong {
+        color: var(--n-800);
+        font-weight: 600;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        font-size: 0.875rem;
+        color: var(--n-500);
+        line-height: 1.7;
+      }
+
+      /* Footer */
+      footer {
+        padding: 2rem 1.5rem 3rem;
+        text-align: center;
+      }
+      footer img {
+        width: 64px;
+        filter: brightness(0);
+        opacity: 0.25;
+        margin: 0 auto 1rem;
+        display: block;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+      footer p {
+        font-size: 0.75rem;
+        color: var(--n-400);
+        margin: 0;
+      }
+      footer a {
+        color: var(--n-600);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        transition: color 150ms ease;
+      }
+      footer a:hover {
+        color: var(--n-900);
+      }
+
+      /* Fade-in animation */
+      .fade {
+        opacity: 0;
+        transform: translateY(0.5rem);
+        transition:
+          opacity 700ms ease,
+          transform 700ms ease;
+      }
+      .fade.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .fade.delay-1 {
+        transition-delay: 150ms;
+      }
+      .fade.delay-2 {
+        transition-delay: 300ms;
+      }
+      .fade.delay-3 {
+        transition-delay: 450ms;
+      }
+      .fade.delay-4 {
+        transition-delay: 600ms;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Background trama (top-right) -->
+    <img src="/trama.gif" alt="" aria-hidden="true" class="trama" />
+
+    <!-- Plants decoration (bottom-left) -->
+    <svg
+      class="plants"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 300 520"
+      fill="none"
+      aria-hidden="true"
+    >
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          values="-1 70 520; 1.4 70 520; -1 70 520"
+          dur="9s"
+          repeatCount="indefinite"
+        />
+        <path
+          d="M70 520 C67 445 76 370 64 295 C52 218 68 155 58 80"
+          stroke="#b8bec6"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+        <path d="M68 470 C50 454 28 440 18 420 C40 418 62 434 68 470Z" fill="#d1d5db" />
+        <path d="M66 405 C85 390 106 375 112 354 C90 352 68 368 66 405Z" fill="#d1d5db" />
+        <path d="M64 338 C44 322 22 305 14 283 C36 281 58 298 64 338Z" fill="#d1d5db" />
+        <path d="M62 272 C80 255 100 237 106 214 C84 212 63 230 62 272Z" fill="#d1d5db" />
+        <path d="M60 208 C40 190 18 170 10 148 C32 146 56 166 60 208Z" fill="#d1d5db" />
+        <path d="M58 144 C72 124 76 100 58 78 C52 100 52 124 58 144Z" fill="#d1d5db" />
+      </g>
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          values="0.8 155 520; -1.6 155 520; 0.8 155 520"
+          dur="7s"
+          repeatCount="indefinite"
+        />
+        <path
+          d="M155 520 C152 458 160 396 148 334 C136 272 152 218 142 165"
+          stroke="#b8bec6"
+          stroke-width="1.6"
+          stroke-linecap="round"
+        />
+        <path d="M153 478 C136 462 114 448 104 428 C126 426 148 442 153 478Z" fill="#d1d5db" />
+        <path d="M151 415 C170 400 190 384 196 362 C174 360 152 378 151 415Z" fill="#d1d5db" />
+        <path d="M149 352 C130 336 108 318 100 296 C122 294 145 314 149 352Z" fill="#d1d5db" />
+        <path d="M147 288 C164 270 182 250 186 228 C164 226 146 246 147 288Z" fill="#d1d5db" />
+        <path d="M144 222 C148 200 145 178 142 158 C138 178 138 200 144 222Z" fill="#d1d5db" />
+      </g>
+    </svg>
+
+    <!-- Hero -->
+    <header class="hero fade">
+      <img class="logo-mark" src="/favicon.png" alt="" aria-hidden="true" />
+      <h1>Build embeddable web components.</h1>
+      <p class="hero-sub">
+        A boilerplate for shipping Lit-powered custom elements that drop into any third-party page
+        with a single script tag.
+      </p>
+    </header>
+
+    <main>
+      <!-- Mode banner -->
+      <div class="mode-banner fade delay-1" id="mode-banner"></div>
+
+      <!-- Live components -->
+      <section class="fade delay-1">
+        <h2 class="eyebrow">Live components</h2>
+        <p class="section-sub">
+          The counters below are real instances of <code>&lt;debrain-counter&gt;</code> rendered by
+          the bundle loaded on this page.
+        </p>
+        <div class="demo-card">
+          <debrain-counter></debrain-counter>
+          <debrain-counter count="42" label="Starting at 42"></debrain-counter>
+        </div>
+        <p class="demo-link">
+          Need a clean canvas for full-width or full-height components?
+          <a href="/example/">Open the isolated test page →</a>
+        </p>
+      </section>
+
+      <!-- How to embed -->
+      <section class="fade delay-2">
+        <h2 class="eyebrow">How to embed</h2>
+        <p class="section-sub">
+          Drop the bundle onto any page with one <code>&lt;script type="module"&gt;</code> tag, then
+          use the custom elements directly in HTML. The bundle registers the elements as a side
+          effect, so they upgrade as soon as the module finishes evaluating.
+        </p>
+        <pre><code>&lt;script type="module" src="http://localhost:3000/embed/embed.es.js"&gt;&lt;/script&gt;
+
+&lt;debrain-counter&gt;&lt;/debrain-counter&gt;
+&lt;debrain-counter count="10" label="Visitors"&gt;&lt;/debrain-counter&gt;</code></pre>
+
+        <p class="section-sub">
+          If the site's CMS doesn't allow <code>type="module"</code>, use the IIFE bundle with a
+          classic script tag instead. It registers the same elements and exposes the exports as
+          <code>window.DebrainEmbeds</code>. Load only one of the two bundles on a page.
+        </p>
+        <pre><code>&lt;script src="http://localhost:3000/embed/embed.iife.js" defer&gt;&lt;/script&gt;
+
+&lt;debrain-counter&gt;&lt;/debrain-counter&gt;</code></pre>
+
+        <div class="note">
+          <strong>CSS is bundled inline.</strong> You don't need a separate
+          <code>&lt;link rel="stylesheet"&gt;</code> — styles are injected into
+          <code>&lt;head&gt;</code> by the bundle on first use, exactly once per component.
+        </div>
+      </section>
+
+      <!-- Component API -->
+      <section class="fade delay-2">
+        <h2 class="eyebrow"><code>&lt;debrain-counter&gt;</code> — API</h2>
+        <p class="section-sub">
+          A minimal counter button demonstrating the structure: Lit element rendered in light DOM
+          (no shadow DOM), SCSS-scoped styles via class prefixes, and a custom event.
+        </p>
+
+        <h3 class="eyebrow eyebrow-tight" style="margin-top: 1.5rem">Attributes</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>count</code></td>
+              <td>number</td>
+              <td><code>0</code></td>
+              <td>Initial counter value. Reflected back to the DOM attribute on change.</td>
+            </tr>
+            <tr>
+              <td><code>label</code></td>
+              <td>string</td>
+              <td><code>"Counter"</code></td>
+              <td>Text shown next to the value.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="eyebrow eyebrow-tight" style="margin-top: 1.5rem">Events</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Detail</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>debrain-counter:change</code></td>
+              <td><code>{ count: number }</code></td>
+              <td>Fired every time the counter is incremented. Bubbles, composed.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="eyebrow eyebrow-tight" style="margin-top: 1.5rem">Listening to the event</h3>
+        <pre><code>document.addEventListener('debrain-counter:change', (e) =&gt; {
+  console.log('New value:', e.detail.count);
+});</code></pre>
+      </section>
+
+      <!-- Endpoints -->
+      <section class="fade delay-3">
+        <h2 class="eyebrow">Endpoints</h2>
+        <div class="stack">
+          <div class="card">
+            <div class="item">
+              <div class="item-body">
+                <div class="item-title">
+                  <span class="item-name"><code>/</code></span>
+                  <span class="item-tag">demo</span>
+                </div>
+                <p class="item-note">This demo &amp; documentation page.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="item">
+              <div class="item-body">
+                <div class="item-title">
+                  <span class="item-name"><code>/example/</code></span>
+                  <span class="item-tag">isolated test</span>
+                </div>
+                <p class="item-note">
+                  Only the component, no surrounding chrome — use this to test full-width or
+                  full-height components.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="item">
+              <div class="item-body">
+                <div class="item-title">
+                  <span class="item-name"><code>/embed/embed.es.js</code></span>
+                  <span class="item-tag">bundle</span>
+                </div>
+                <p class="item-note">
+                  ES module bundle. Use with <code>&lt;script type="module"&gt;</code> or
+                  <code>import()</code>. Registers the custom elements as a side effect.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="item">
+              <div class="item-body">
+                <div class="item-title">
+                  <span class="item-name"><code>/embed/embed.iife.js</code></span>
+                  <span class="item-tag">bundle</span>
+                </div>
+                <p class="item-note">
+                  Classic-script (IIFE) bundle for CMSs that don't allow ES modules. Use with a
+                  plain
+                  <code>&lt;script&gt;</code>; exports land on <code>window.DebrainEmbeds</code>.
+                  Test it at <a href="/example/iife/"><code>/example/iife/</code></a> (production
+                  build only).
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conventions / Security -->
+      <section class="fade delay-3">
+        <h2 class="eyebrow">Conventions &amp; security</h2>
+        <div class="grid-2">
+          <div class="card card-soft">
+            <div class="item-body">
+              <span class="item-name">Light DOM</span>
+              <p class="item-note">
+                Components render in light DOM — no shadow root — so consumer pages can style them
+                if needed. Classes are BEM-prefixed (<code>.debrain-counter__btn</code>) to avoid
+                collisions.
+              </p>
+            </div>
+          </div>
+          <div class="card card-soft">
+            <div class="item-body">
+              <span class="item-name">CORS &amp; helmet</span>
+              <p class="item-note">
+                <code>/embed/*</code> is served with <code>Access-Control-Allow-Origin: *</code> and
+                <code>Cross-Origin-Resource-Policy: cross-origin</code>. Consumer sites define their
+                own CSP.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fade delay-4">
+      <img src="/debrain-logo.png" alt="DĚBRAIN" draggable="false" />
+      <p>
+        Need help? Contact
+        <a href="mailto:jose@hellodebrain.com">jose@hellodebrain.com</a>
+      </p>
+    </footer>
+
+    <script>
+      // Mode banner
+      const banner = document.getElementById("mode-banner");
+      const port = location.port;
+      if (port === "5173") {
+        banner.innerHTML =
+          "<strong>Dev mode (Vite, port 5173).</strong> The bundle is loaded from <code>/src/embed.ts</code> with hot module reload — edit any file under <code>src/</code> to see changes live.";
+      } else {
+        banner.innerHTML =
+          "<strong>Production preview (Express, port " +
+          (port || "3000") +
+          ").</strong> The bundle is loaded from the compiled <code>/embed/embed.es.js</code>.";
+      }
+
+      // Fade-in
+      requestAnimationFrame(() => {
+        document.querySelectorAll(".fade").forEach((el) => el.classList.add("is-visible"));
+      });
+    </script>
+
+    <!-- @embed-entry: this script tag is rewritten by scripts/build-demo-html.ts during build -->
+    <script type="module" src="/src/embed.ts"></script>
+  </body>
+</html>

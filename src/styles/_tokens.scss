@@ -1,0 +1,15 @@
+// Design tokens shared across components.
+// Import in any *.scss with: @use '../../styles/tokens' as tokens;
+
+$color-bg: #ffffff;
+$color-fg: #1a1f24;
+$color-accent: #2563eb;
+$color-accent-hover: #1d4ed8;
+$color-border: #d4d8dd;
+
+$radius-sm: 4px;
+$radius-md: 8px;
+
+$font-stack: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);

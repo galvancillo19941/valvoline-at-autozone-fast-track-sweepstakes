@@ -1,0 +1,54 @@
+@use "../../styles/tokens" as t;
+
+.debrain-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-family: t.$font-stack;
+  color: t.$color-fg;
+  background: t.$color-bg;
+  border: 1px solid t.$color-border;
+  border-radius: t.$radius-md;
+  box-shadow: t.$shadow-sm;
+
+  &__icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  &__value {
+    font-variant-numeric: tabular-nums;
+    min-width: 2ch;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  &__btn {
+    appearance: none;
+    border: none;
+    background: t.$color-accent;
+    color: #ffffff;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    border-radius: t.$radius-sm;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+
+    &:hover {
+      background: t.$color-accent-hover;
+    }
+
+    &:focus-visible {
+      outline: 2px solid t.$color-accent-hover;
+      outline-offset: 2px;
+    }
+  }
+}

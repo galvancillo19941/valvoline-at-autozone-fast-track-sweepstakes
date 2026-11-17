@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.github
+.vscode
+.vite
+.cache
+.env*
+*.log
+.DS_Store
+Dockerfile
+.dockerignore
+
+# Dev environment, not part of the image
+.devcontainer/
+.claude/
+docker-compose*.yml

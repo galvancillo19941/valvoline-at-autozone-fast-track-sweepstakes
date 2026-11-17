@@ -1,0 +1,11 @@
+#!/bin/sh
+# .devcontainer/down — stop this project's devcontainer (data in the workspace is kept)
+set -eu
+here=$(cd "$(dirname "$0")" && pwd -P)
+docker=$(command -v docker 2>/dev/null \
+  || ls /usr/local/bin/docker /opt/homebrew/bin/docker "$HOME/.orbstack/bin/docker" \
+       "$HOME/.docker/bin/docker" 2>/dev/null | head -1)
+# Same project name VS Code uses for this folder, so both reach the same container
+name=$(basename "$(dirname "$here")" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-\n' '-')_devcontainer
+"$docker" compose -p "$name" -f "$here/compose.yaml" -f "$here/compose.ports.yaml" down
+rm -f "$here/.ports"

@@ -1,0 +1,48 @@
+#!/bin/sh
+# .devcontainer/run <command...>
+#
+# Runs a command inside this project's devcontainer, in the folder matching the
+# current one (./apps/api on the host → /workspace/apps/api in the container).
+# Claude Code's Bash commands are routed through here by .devcontainer/claude-hook;
+# you can use it too:  .devcontainer/run vp check
+#
+# Ctrl+C / kill stops the command inside the container as well.
+set -u
+
+here=$(cd "$(dirname "$0")" && pwd -P)
+project=$(dirname "$here")
+
+docker=$(command -v docker 2>/dev/null \
+  || ls /usr/local/bin/docker /opt/homebrew/bin/docker "$HOME/.orbstack/bin/docker" \
+       "$HOME/.docker/bin/docker" 2>/dev/null | head -1)
+[ -n "$docker" ] || { echo "[devcontainer] docker not found" >&2; exit 127; }
+
+ctr=$("$docker" ps -q \
+  --filter "label=com.docker.compose.project.working_dir=$here" \
+  --filter "label=com.docker.compose.service=dev" 2>/dev/null | head -1)
+if [ -z "$ctr" ]; then
+  echo "[devcontainer] the devcontainer for $project is not running." >&2
+  echo "[devcontainer] Start it with VS Code → \"Reopen in Container\", or: .devcontainer/up" >&2
+  exit 125
+fi
+
+[ "$#" -gt 0 ] || set -- bash
+
+cwd=$(pwd -P)
+case "$cwd/" in
+  "$project"/*) dir="/workspace${cwd#"$project"}" ;;
+  *) dir=/workspace ;;
+esac
+
+id="run-$$-$(date +%s)"
+"$docker" exec -w "$dir" "$ctr" debrainpacks-exec "$id" "$*" &
+child=$!
+
+stop() {
+  "$docker" exec "$ctr" debrainpacks-exec --kill "$id" >/dev/null 2>&1
+  kill "$child" 2>/dev/null
+}
+trap 'stop; exit 130' INT
+trap 'stop; exit 143' TERM HUP
+
+wait "$child"
