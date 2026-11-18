@@ -3,7 +3,9 @@
 // To add a new component, create it under src/components/<name>/ and add its import here.
 
 import "./components/counter/counter";
+import "./components/valvoline-at-autozone-fast-track-sweepstakes/valvoline-at-autozone-fast-track-sweepstakes";
 
 export { DebrainCounter } from "./components/counter/counter";
+export { ValvolineAtAutozoneFastTrackSweepstakes } from "./components/valvoline-at-autozone-fast-track-sweepstakes/valvoline-at-autozone-fast-track-sweepstakes";
 
 export const version = "0.1.0";

@@ -1,0 +1,37 @@
+// =============================================================================
+// SNIPPET — Smarty routes for server/index.ts (Express, production)
+// Paste each block at the anchor named in its header. Do not reorder.
+// =============================================================================
+
+// --- [1] IMPORT — next to the other imports at the top of server/index.ts ----
+import * as address from "./controllers/address.js";
+
+// --- [2] ENV — right after the imports, before `const app = express()` -------
+// Local development only — in production the host injects SMARTY_AUTH_ID /
+// SMARTY_AUTH_TOKEN straight into the environment and there is no .env file.
+try {
+  process.loadEnvFile();
+} catch {
+  // No .env on disk: everything either comes from the real environment or is
+  // missing, which the Smarty service reports on the first lookup.
+}
+
+// --- [3] ROUTES — AFTER app.use(helmet(...)) and the /embed static block, ----
+// ---     and BEFORE the final app.use(express.static(distDir)) ---------------
+// Address autocomplete, proxied to Smarty. It lives here rather than in the
+// component because Smarty's server-side credentials (auth-id + auth-token)
+// must never reach the browser — the alternative, a browser "embedded key",
+// has to be re-authorized in Smarty's dashboard for every consumer domain the
+// embed lands on. Same CORS treatment as /embed: the component calls this
+// from whatever third-party page it's embedded in.
+app.use("/api/address", (_req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  // Lookups are per-keystroke and cheap to repeat — never let a proxy or the
+  // browser serve a stale suggestion list for a different query.
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+app.get("/api/address/search", address.search);
+app.get("/api/address/details", address.details);
+app.get("/api/address/autocomplete", address.autocomplete);
+app.get("/api/address/validate-country", address.validateCountry);

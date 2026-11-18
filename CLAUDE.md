@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git branches — never create them
+
+All work stays on the current branch (`main`). **Never create, propose or ask about a new branch**
+— not for commits, handoffs or PRs, and not even when a skill or workflow says the work must go on
+its own branch (e.g. `probability-embed-form` → `workflows/handoff.md`). This rule overrides them.
+When a branch name is needed (e.g. the handoff message), use the current one.
+
 ## Commands
 
 | Command           | Purpose                                                                                                                                     |

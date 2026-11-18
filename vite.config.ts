@@ -1,10 +1,50 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import express from "express";
+import { defineConfig, type Plugin } from "vite";
+import type * as AddressController from "./server/controllers/address.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
+// `pnpm dev` runs Vite, not the Express app in server/ — so /api/address/*
+// would 404 and the Street Address autocomplete would silently render no
+// suggestions. Mount the very same controller Express uses as dev middleware so
+// both entry points behave alike. The module is pulled through Vite's own TS
+// loader, and lazily, so editing it takes effect without restarting the server.
+function embedApiDevServer(): Plugin {
+  return {
+    name: "embed-api-dev",
+    apply: "serve",
+    configureServer(server) {
+      // Same as server/index.ts: local dev reads .env, production injects the
+      // Smarty credentials into the environment directly.
+      try {
+        process.loadEnvFile();
+      } catch {
+        // No .env on disk — the Smarty service reports it on the first lookup.
+      }
+
+      const app = express();
+      const address =
+        (name: keyof typeof AddressController): express.RequestHandler =>
+        (req, res, next) => {
+          void server
+            .ssrLoadModule("/server/controllers/address.ts")
+            .then((mod) => (mod as Record<string, express.RequestHandler>)[name](req, res, next))
+            .catch(next);
+        };
+
+      app.get("/api/address/search", address("search"));
+      app.get("/api/address/details", address("details"));
+      app.get("/api/address/autocomplete", address("autocomplete"));
+      app.get("/api/address/validate-country", address("validateCountry"));
+      server.middlewares.use(app);
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
+  plugins: [embedApiDevServer()],
   // Serve public/ in dev. During build (library mode), disable it — the post-build
   // script (scripts/build-demo-html.ts) copies public/ → dist/ so it lives at the
   // root of the served tree, not inside dist/embed/.

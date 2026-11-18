@@ -1,0 +1,757 @@
+import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import { initAnalytics, track, trackScrollDepth } from "../../lib/analytics";
+import { attachAddressAutocomplete, type AddressAutocomplete } from "../../lib/address-autocomplete";
+import { injectPreconnect, injectScript, injectStylesheet } from "../../lib/inject-script";
+import { installBlobImageFallback } from "../../lib/blob-image-fallback";
+import { heicToJpeg, isHeic, isPdf } from "../../lib/heic-to-jpeg";
+import { injectStyles } from "../../lib/inject-styles";
+import styles from "./probability-valvoline-oil-change-us.scss?inline";
+
+// Preconnect hints + exact Barlow weight range and Passion One — same
+// recipe the older Valvoline templates load from template.njk. Barlow
+// Condensed stays too: our own $font-heading already relies on it.
+const FONT_PRECONNECTS: [href: string, crossOrigin: boolean][] = [
+  ["https://fonts.googleapis.com", false],
+  ["https://fonts.gstatic.com", true],
+];
+const FONT_URLS = [
+  "https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap",
+  "https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&display=swap",
+  "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap",
+];
+
+// <universal-form> is defined by this remote ES module. Only our own demo pages
+// carry it in their HTML, so the embed loads it itself for a consumer page.
+const UNIVERSAL_FORM_SRC = "https://universal-form.onprobability.com/v1/dist/index.js";
+const API_BASE = "https://api.helloprobability.io";
+// Cloudflare Turnstile. The new <universal-form> has no captcha support at all
+// (the old webcomponent drew it itself), so it is loaded and rendered here.
+// `render=explicit` because the widget is mounted by hand, once the form has
+// built the spot for it.
+const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+// How long to wait for the script before telling the visitor it did not load.
+const TURNSTILE_LOAD_TIMEOUT_MS = 15_000;
+// Cloudflare's always-passes test key: the program's real key is bound to its
+// production hostnames, so on localhost it would just error out.
+const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA";
+const IS_LOCALHOST = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+
+interface TurnstileApi {
+  render(
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      theme?: "light" | "dark" | "auto";
+      callback: (token: string) => void;
+      "expired-callback": () => void;
+      "error-callback": () => void;
+    },
+  ): string;
+  remove(widgetId: string): void;
+}
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
+
+// Turnstile is on when the program says so in its settings; the token goes out
+// under the program's own hidden field (grecaptcha_validation, named by the
+// old form after reCAPTCHA but used for Turnstile too).
+interface CaptchaSettings {
+  siteKey: string;
+  fieldName: string;
+}
+const PROGRAM_ID = "6ac68a2096b160ec2ff78311";
+const UPLOAD_FIELD_ID = "6ac68a2096b160ec2ff78318";
+
+// The campaign lives on api.helloprobability.io, which the form's own
+// `program` mode can't reach (it is fixed to another backend), so the fields
+// are declared here, the receipt uploads straight to
+// POST {upload.action}/api/files/upload/{program}/{uploadId}, and the entry
+// goes out from #handleSubmit.
+const FORM_CONFIG = {
+  upload: { program: PROGRAM_ID, action: API_BASE },
+  fields: [
+    { type: "text", name: "first_name", label: "First Name", placeholder: "First Name", required: true, errorMessage: "Please enter your first name" },
+    { type: "text", name: "last_name", label: "Last Name", placeholder: "Last Name", required: true, errorMessage: "Please enter your last name" },
+    { type: "email", name: "email_address", label: "Email Address", placeholder: "Email Address", required: true, errorMessage: "Please enter your email address" },
+    { type: "text", name: "street_address", label: "Street Address", placeholder: "Street Address", required: true, errorMessage: "Please enter your street address" },
+    { type: "tel", name: "phone_number", label: "Phone Number", placeholder: "Phone Number", required: true, errorMessage: "Please enter your phone number" },
+    {
+      type: "select",
+      name: "p_my_purchase_was_made_at_p",
+      label: "My Purchase was made at",
+      placeholder: "My Purchase was made at",
+      required: true,
+      errorMessage: "Please select a Store",
+      options: [
+        { label: "Advance Auto Parts", value: "advance_auto_parts" },
+        { label: "Carquest", value: "carquest" },
+      ],
+    },
+    {
+      type: "image",
+      name: "upload_receipt",
+      label: "Upload Receipt",
+      required: true,
+      uploadId: UPLOAD_FIELD_ID,
+      errorMessage: "Please upload a receipt",
+      accept: "image/*,.heic,.heif,.pdf",
+    },
+    {
+      type: "checkbox",
+      name: "optin_field",
+      label:
+        "Yes, I'd like to receive emails with updates, special offers and other information from Valvoline. I understand I may unsubscribe at any time. / Sí, me gustaría recibir correos electrónicos con actualizaciones, ofertas especiales y otra información de Valvoline. Entiendo que puedo cancelar la suscripción en cualquier momento.",
+      required: false,
+    },
+    {
+      type: "checkbox",
+      name: "p_i_confirm_that_i_am_a_legal_resident_o",
+      // Plain-text fallback; the form renders `labelHtml` (sanitized: only a/strong/em/br/p) when present.
+      label:
+        "I confirm that I am a legal resident of the 50 U.S./D.C., or Puerto Rico, meet the age-of-majority requirements for my jurisdiction, and have read and agree to the Official Rules, Sponsor's Terms of Use, and Privacy Notice. / Confirmo que soy residente legal de los 50 estados de EE. UU./D. C. o de Puerto Rico, cumplo con los requisitos de mayoría de edad de mi jurisdicción, y he leído y acepto las Reglas Oficiales, los Términos de Uso del patrocinador y el Aviso de Privacidad.",
+      labelHtml:
+        '<p>I confirm that I am a legal resident of the 50 U.S./D.C., or Puerto Rico, meet the age-of-majority requirements for my jurisdiction, and have read and agree to the <a href="https://promotions.valvolineglobal.com/oilchangegcsweepstakes-officialrules" rel="noopener noreferrer" target="_blank">Official Rules</a>, Sponsor\'s <a href="https://www.valvolineglobal.com/en/legal-notices/terms-of-use/" rel="noopener noreferrer" target="_blank">Terms of Use</a>, and <a href="https://www.valvolineglobal.com/en/legal-notices/privacy-policy/" rel="noopener noreferrer" target="_blank">Privacy Notice</a>. / Confirmo que soy residente legal de los 50 estados de EE. UU./D. C. o de Puerto Rico, cumplo con los requisitos de mayoría de edad de mi jurisdicción, y he leído y acepto las <a href="https://promotions.valvolineglobal.com/oilchangegcsweepstakes-officialrules-es" rel="noopener noreferrer" target="_blank">Reglas Oficiales</a>, los <a href="https://www.valvolineglobal.com/en/legal-notices/terms-of-use/" rel="noopener noreferrer" target="_blank">Términos de Uso</a> del patrocinador y el <a href="https://www.valvolineglobal.com/en/legal-notices/privacy-policy/" rel="noopener noreferrer" target="_blank">Aviso de Privacidad</a>.</p>',
+      required: true,
+      errorMessage: "Required field",
+    },
+  ],
+};
+
+// The campaign window (and the two messages for outside it) lives in the
+// program's own settings, served by POST /service/get-form-fields/{program}.
+// The form turns opensAt/closesAt into its "pending" / "closed" banners and
+// flips between them (and the fields) by itself while the page stays open.
+interface DateValidations {
+  startDate?: string;
+  startDateMessage?: string;
+  endDate?: string;
+  endDateMessage?: string;
+}
+
+interface ProgramSettings {
+  campaignWindow: Record<string, unknown>;
+  captcha: CaptchaSettings | null;
+  // The settings request failed (blocked, offline or API error).
+  failed?: boolean;
+}
+
+async function fetchProgramSettings(programId: string, env: string): Promise<ProgramSettings> {
+  try {
+    const response = await fetch(`${API_BASE}/service/get-form-fields/${programId}?frm=new`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ env }),
+    });
+    const body = (await response.json()) as {
+      data?: {
+        dateValidations?: DateValidations;
+        cloudflareCaptchaEnabled?: boolean;
+        cloudflareCaptchaSiteKey?: string;
+        fields?: { name?: string; field_type?: string }[];
+      };
+    };
+    if (!response.ok || !body.data) return { campaignWindow: {}, captcha: null, failed: true };
+
+    const { cloudflareCaptchaEnabled, cloudflareCaptchaSiteKey, fields } = body.data;
+    const captcha: CaptchaSettings | null =
+      cloudflareCaptchaEnabled && cloudflareCaptchaSiteKey
+        ? {
+            siteKey: cloudflareCaptchaSiteKey,
+            fieldName: fields?.find((f) => f.field_type === "hidden")?.name ?? "grecaptcha_validation",
+          }
+        : null;
+
+    const dates = body.data.dateValidations;
+    const campaignWindow: Record<string, unknown> = {};
+    if (!dates) return { campaignWindow, captcha };
+    if (dates.startDate) {
+      campaignWindow.opensAt = dates.startDate;
+      if (dates.startDateMessage?.trim()) campaignWindow.pending = { title: "Sorry!", description: dates.startDateMessage.trim() };
+    }
+    if (dates.endDate) {
+      campaignWindow.closesAt = dates.endDate;
+      if (dates.endDateMessage?.trim()) campaignWindow.closed = { title: "Sorry!", description: dates.endDateMessage.trim() };
+    }
+    return { campaignWindow, captcha };
+  } catch {
+    return { campaignWindow: {}, captcha: null, failed: true };
+  }
+}
+
+// Name pair, email, address, then phone + store pair up; the rest go one per row.
+const FORM_SKELETON = [["1fr", "1fr"], ["1fr"], ["1fr"], ["1fr", "1fr"]];
+
+// Text, email, tel, select, checkbox and the submit button render inside their
+// own shadow roots, which page CSS can't reach (only --uf-* variables cross).
+// This is injected into each of those roots to get the "label inside the
+// field" look of the previous form: each label rests inside its field and
+// floats up, smaller, once the field is focused or filled. The placeholder
+// (set to the label in FORM_CONFIG) only exists so :placeholder-shown can tell
+// an empty field from a filled one; it is never visible.
+const SHADOW_CSS = `
+  .field { position: relative; }
+  .field > label {
+    display: block !important;
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    z-index: 1;
+    max-width: calc(100% - 26px);
+    margin: 0 !important;
+    padding: 0 2px;
+    transform: translateY(-50%);
+    font: 400 16px/normal "Barlow", sans-serif !important;
+    color: #616161 !important;
+    pointer-events: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: top 250ms cubic-bezier(0.5, 0, 0.1, 1), transform 250ms cubic-bezier(0.5, 0, 0.1, 1), font-size 250ms cubic-bezier(0.5, 0, 0.1, 1);
+  }
+  .field > label .required { display: none; }
+  /* Green check once a field is filled and valid (native validity: required,
+     email format...). The select's sits left of its chevron. */
+  .field:has(input:not([type="checkbox"]):not(:placeholder-shown):valid:not([aria-invalid="true"]))::after,
+  .field:has(select:not(.placeholder-selected):valid)::after {
+    content: "";
+    position: absolute;
+    top: 25px;
+    right: 12px;
+    width: 12px;
+    height: 9px;
+    transform: translateY(-50%);
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 9'%3E%3Cpath d='M1 4.5l3.5 3.5L11 1' fill='none' stroke='%2327a844' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    pointer-events: none;
+  }
+  .field:has(select)::after { right: 36px !important; }
+  /* Street address typed but not picked from the suggestions: no check. */
+  .probability-valvoline-oil-change-us__address-invalid::after { display: none !important; }
+  .field:has(input:focus) > label,
+  .field:has(input:not(:placeholder-shown)) > label,
+  .field:has(select:focus) > label,
+  .field:has(select:not(.placeholder-selected)) > label {
+    top: 8px;
+    transform: none;
+    font-size: 12px !important;
+  }
+  input:not([type="checkbox"]), select {
+    box-sizing: border-box;
+    width: 100%;
+    height: 50px !important;
+    padding: 20px 0.75rem 0 !important;
+    font-family: "Barlow", sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    color: #616161 !important;
+    background: #fff !important;
+    border: 1px solid #616161 !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+  }
+  input:not([type="checkbox"]):focus, select:focus { border-color: #00316d !important; outline: none; }
+  input::placeholder { color: transparent !important; opacity: 0 !important; }
+  select { padding-top: 16px !important; }
+  select.placeholder-selected:not(:focus) { color: transparent !important; }
+  .field .label { font-size: 14px; line-height: 1.5; }
+  .rich a { transition: color 150ms; }
+  .rich a:hover, .rich a:focus-visible { color: #00316d !important; }
+  button[type="submit"] {
+    width: 100% !important;
+    height: 36px !important;
+    border-radius: 0 !important;
+    font-family: "Barlow", sans-serif !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+  }
+  .input-wrap { position: relative; }
+  .probability-valvoline-oil-change-us__suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+    margin: 0; padding: 0; list-style: none; background: #fff;
+    border: 1px solid #8a8c8e; border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); max-height: 220px; overflow-y: auto;
+  }
+  .probability-valvoline-oil-change-us__suggestions[hidden] { display: none; }
+  .probability-valvoline-oil-change-us__suggestion {
+    margin: 0; padding: 8px 12px; font: 14px/20px "Barlow", sans-serif;
+    color: #616161; cursor: pointer; list-style: none; text-align: left;
+  }
+  .probability-valvoline-oil-change-us__suggestion:hover { background: #00316d; color: #fff; }
+`;
+
+// The remote uf-image-upload keeps its Cropper.js instance on `_cropper` (an
+// internal, not API). Everything that touches it is optional-chained so that a
+// change upstream degrades to the library's own default instead of throwing.
+interface CropperLike {
+  getCanvasData(): object;
+  setCropBoxData(data: object): unknown;
+}
+type ImageUploadElement = HTMLElement & { cropper?: boolean; _cropper?: CropperLike | null };
+
+function makeHeading(text: string): HTMLElement {
+  const heading = document.createElement("div");
+  heading.className = "probability-valvoline-oil-change-us__section-heading";
+  heading.innerHTML = `<span class="probability-valvoline-oil-change-us__section-text">${text}</span><span class="probability-valvoline-oil-change-us__section-line"></span>`;
+  return heading;
+}
+
+injectStyles("probability-valvoline-oil-change-us", styles);
+
+@customElement("probability-valvoline-oil-change-us")
+export class ProbabilityValvolineOilChangeUs extends LitElement {
+  @property({ type: String, attribute: "program_id" })
+  programId = PROGRAM_ID;
+
+  @property({ type: String })
+  env = "prod";
+
+  // 0 = form, 1 = thank you, 2 = submission error.
+  @property({ type: Number })
+  submitted = 0;
+
+  // Spinner until the form has rendered and #enhanceForm has styled it, so the
+  // form's own loading skeleton (and unstyled first paint) is never shown.
+  @property({ type: Boolean })
+  loader = true;
+
+  // FORM_CONFIG plus the campaign window; null until get-form-fields answers.
+  @state()
+  private formConfig: Record<string, unknown> | null = null;
+
+  #submitError = "";
+
+  #captcha: CaptchaSettings | null = null;
+  #turnstileToken = "";
+  #turnstileWidgetId?: string;
+  #turnstileWaitingSince = 0;
+
+  #stopScrollTracking?: () => void;
+
+  #handleSubmit = (event: Event): void => {
+    const { values, metadata } = (
+      event as CustomEvent<{ values: Record<string, unknown>; metadata?: Record<string, unknown> }>
+    ).detail;
+    // The form has already validated the fields and uploaded the receipt by
+    // the time it fires uf-submit, and in this mode that event ends its work
+    // (it changes no state), so holding the entry back here only costs the
+    // visitor a second click once the check has finished; the uploads are not
+    // repeated.
+    // The street address must be one picked from the Smarty suggestions. The
+    // form only checks that it is not empty, so this is where a typed-by-hand
+    // address is stopped (nothing is sent; the visitor fixes it and submits again).
+    if (this.#address && !this.#address.isValid()) {
+      this.#address.showError();
+      return;
+    }
+    const captcha = this.#captcha;
+    if (captcha && !this.#turnstileToken) {
+      this.#setTurnstileMessage("Please wait for the security check to finish, then submit again.");
+      return;
+    }
+    // The form collects the visit's utm_*, url, referrer and fingerprint into
+    // `metadata`, apart from `values`. The submission body is flat, so merge
+    // them the way the form's own `send` mode would.
+    void this.#submit({
+      ...values,
+      ...metadata,
+      ...(captcha ? { [captcha.fieldName]: this.#turnstileToken } : {}),
+    });
+  };
+
+  // Mounts the Turnstile widget in a box of ours at the end of the fields, just
+  // above the submit button. Idempotent, like the rest of #enhanceForm: the
+  // form re-renders its fields, which can drop the box, and then the widget is
+  // mounted again in the new one (a token only belongs to its own widget).
+  #enhanceTurnstile(fields: Element): void {
+    const captcha = this.#captcha;
+    if (!captcha) return;
+
+    let box = fields.querySelector<HTMLElement>(".probability-valvoline-oil-change-us__turnstile");
+    if (!box) {
+      if (this.#turnstileWidgetId !== undefined) {
+        try {
+          window.turnstile?.remove(this.#turnstileWidgetId);
+        } catch {
+          // The widget went away with its box; nothing left to remove.
+        }
+      }
+      this.#turnstileWidgetId = undefined;
+      this.#turnstileToken = "";
+      box = document.createElement("div");
+      box.className = "probability-valvoline-oil-change-us__turnstile";
+      box.innerHTML = `
+        <div class="probability-valvoline-oil-change-us__turnstile-widget"></div>
+        <p class="probability-valvoline-oil-change-us__turnstile-message" role="alert" hidden></p>
+      `;
+      fields.append(box);
+    }
+    if (this.#turnstileWidgetId !== undefined) return;
+
+    const turnstile = window.turnstile;
+    if (!turnstile) {
+      // The script is still on its way (this runs every 250ms until it lands).
+      this.#turnstileWaitingSince ||= Date.now();
+      if (Date.now() - this.#turnstileWaitingSince > TURNSTILE_LOAD_TIMEOUT_MS) {
+        this.#setTurnstileMessage(
+          "We couldn't load the security check. Please reload the page or try another browser.",
+        );
+      }
+      return;
+    }
+
+    const widget = box.querySelector<HTMLElement>(".probability-valvoline-oil-change-us__turnstile-widget");
+    if (!widget) return;
+    this.#turnstileWidgetId = turnstile.render(widget, {
+      sitekey: IS_LOCALHOST ? TURNSTILE_TEST_SITE_KEY : captcha.siteKey,
+      theme: "light",
+      callback: (token) => {
+        this.#turnstileToken = token;
+        this.#setTurnstileMessage("");
+      },
+      // The token lives about five minutes; Turnstile renews it by itself, but
+      // until it has, an old one must not be sent.
+      "expired-callback": () => {
+        this.#turnstileToken = "";
+      },
+      "error-callback": () => {
+        this.#turnstileToken = "";
+        this.#setTurnstileMessage(
+          "We couldn't complete the security check. Please reload the page and try again.",
+        );
+      },
+    });
+  }
+
+  #setTurnstileMessage(message: string): void {
+    const el = this.querySelector<HTMLElement>(".probability-valvoline-oil-change-us__turnstile-message");
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = message === "";
+  }
+
+  async #submit(entries: Record<string, unknown>): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE}/submission/${this.env}/${this.programId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entries),
+      });
+      const result = (await response.json()) as {
+        statusCode?: number;
+        error?: { detail?: string };
+      };
+      if (result.statusCode === 200) {
+        this.submitted = 1;
+        track("entry_success");
+      } else {
+        this.#submitError =
+          result.error?.detail ?? "Something went wrong submitting your form. Please try again.";
+        this.submitted = 2;
+        track("entry_error", { reason: "api" });
+      }
+    } catch {
+      this.#submitError = "Something went wrong submitting your form. Please try again.";
+      this.submitted = 2;
+      track("entry_error", { reason: "network" });
+    }
+  }
+
+  // Everything the form builds after we render it (shadow roots, fields) shows
+  // up asynchronously, so poll briefly instead of assuming it's there.
+  #enhanceTimer?: number;
+  #addressAttached = false;
+  #address?: AddressAutocomplete;
+  #uploadAttached = false;
+  #uploadObserver?: MutationObserver;
+  #cropModalObserver?: MutationObserver;
+
+  // The cropper modal lives in document.body, not in this element, and the
+  // library opens its crop box at 85% of the image (autoCropArea: .85) with no
+  // option to change it. When the modal's <img> reports `ready`, stretch the
+  // box over the whole image so every crop starts from the full receipt.
+  #watchCropModal(): void {
+    this.#cropModalObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof HTMLElement) || !node.matches(".uf-crop-overlay")) continue;
+          node.querySelector(".uf-crop-img")?.addEventListener(
+            "ready",
+            () => {
+              const cropper = this.querySelector<ImageUploadElement>("uf-image-upload")?._cropper;
+              cropper?.setCropBoxData(cropper.getCanvasData());
+            },
+            { once: true },
+          );
+        }
+      }
+    });
+    this.#cropModalObserver.observe(document.body, { childList: true });
+  }
+
+  // Images go through Universal Form's cropper, which can't open a PDF (it
+  // hangs) nor a HEIC (no browser renders one in an <img>). A PDF is sent as-is
+  // by turning the cropper off for that pick; a HEIC is swapped for a JPEG
+  // before filepond ever sees it. Both run in the capture phase.
+  #setupUploadField(upload: ImageUploadElement): void {
+    if (this.#uploadAttached) return;
+    this.#uploadAttached = true;
+
+    // FilePond can't draw a PDF, so the box would be empty. Flag the field
+    // while the file it holds is a PDF and let the stylesheet show the
+    // "upload complete" artwork instead. Read from the file's name in the DOM
+    // rather than from the pick/drop events: FilePond replaces the previous
+    // item after those fire, so event-driven state would be wiped by its own
+    // clean-up.
+    const syncFileKind = (): void => {
+      const name = upload.querySelector(".filepond--file-info-main")?.textContent ?? "";
+      if (/\.pdf$/i.test(name.trim())) upload.dataset.fileKind = "pdf";
+      else delete upload.dataset.fileKind;
+    };
+    this.#uploadObserver = new MutationObserver(syncFileKind);
+    this.#uploadObserver.observe(upload, { childList: true, subtree: true, characterData: true });
+
+    const setCropper = (files: FileList | null | undefined): void => {
+      const file = files?.[0];
+      if (file) upload.cropper = !isPdf(file);
+    };
+    upload.addEventListener("drop", (event) => setCropper((event as DragEvent).dataTransfer?.files), true);
+    upload.addEventListener(
+      "change",
+      (event) => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || input.type !== "file") return;
+        const file = input.files?.[0];
+        if (!file) return;
+        this.#clearUploadError();
+        setCropper(input.files);
+        if (!isHeic(file)) {
+          track("receipt_upload_success", { file_kind: isPdf(file) ? "pdf" : "image" });
+          return;
+        }
+
+        event.stopImmediatePropagation();
+        upload.style.opacity = "0.5";
+        upload.style.pointerEvents = "none";
+        heicToJpeg(file)
+          .then((jpeg) => {
+            const transfer = new DataTransfer();
+            transfer.items.add(jpeg);
+            input.files = transfer.files;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+          })
+          .catch((error: unknown) => {
+            console.error("HEIC conversion error:", error);
+            track("receipt_upload_error", { file_kind: "heic" });
+            input.value = "";
+            this.#showUploadError("We couldn't read that photo. Please try a JPG, PNG or PDF instead");
+          })
+          .finally(() => {
+            upload.style.opacity = "";
+            upload.style.pointerEvents = "";
+          });
+      },
+      true,
+    );
+  }
+
+  // Right under the white card (outside it, on the page background, where the
+  // yellow reads), same spot as the form's own "Please upload a receipt".
+  #showUploadError(message: string): void {
+    const card = this.querySelector("uf-image-upload")?.closest(".field-wrapper");
+    if (!card) return;
+    this.#clearUploadError();
+    const el = document.createElement("p");
+    el.className = "probability-valvoline-oil-change-us__upload-error";
+    el.textContent = message;
+    card.after(el);
+  }
+
+  #clearUploadError(): void {
+    this.querySelector(".probability-valvoline-oil-change-us__upload-error")?.remove();
+  }
+
+  #enhanceForm = (): void => {
+    const form = this.querySelector("universal-form");
+    if (!form) return;
+
+    for (const el of form.querySelectorAll("*")) {
+      const root = el.shadowRoot;
+      if (!root || root.querySelector("style[data-embed-id]")) continue;
+      const style = document.createElement("style");
+      style.dataset.embedId = "probability-valvoline-oil-change-us";
+      style.textContent = SHADOW_CSS;
+      root.appendChild(style);
+    }
+
+    if (!this.#addressAttached) {
+      const street = this.querySelector("uf-text-input[name='street_address']");
+      const input = street?.shadowRoot?.querySelector<HTMLInputElement>("input");
+      if (input) {
+        this.#address = attachAddressAutocomplete(input);
+        this.#addressAttached = true;
+      }
+    }
+
+    // Before the opening date or after the closing one the form swaps its
+    // fields for a banner: nothing to enhance, just stop the spinner.
+    if (form.querySelector(".state-banner") && !form.querySelector(".fields")) {
+      this.loader = false;
+      return;
+    }
+
+    const fields = form.querySelector(".fields");
+    const firstRow = fields?.querySelector(".field-row");
+    const uploadField = form.querySelector("uf-image-upload")?.closest(".field-wrapper");
+    if (!fields || !firstRow || !uploadField) return;
+
+    const uploadEl = form.querySelector<HTMLElement>("uf-image-upload");
+    if (uploadEl) this.#setupUploadField(uploadEl);
+
+    if (!fields.querySelector(".probability-valvoline-oil-change-us__section-heading")) {
+      firstRow.before(makeHeading("General Info"));
+      uploadField.before(makeHeading("Upload Store Receipt"));
+    }
+    if (!fields.querySelector(".probability-valvoline-oil-change-us__tips")) {
+      const tips = document.createElement("div");
+      tips.className = "probability-valvoline-oil-change-us__tips";
+      // A <span> and a classed <a> on purpose: valvolineglobal.com forces white
+      // on every `p` and class-less `a` inside its promo blocks (!important, higher
+      // specificity than ours), which left this band white on light gray.
+      tips.innerHTML = `
+        <span class="probability-valvoline-oil-change-us__tips-text">Make sure your receipt is legible</span>
+        <a class="probability-valvoline-oil-change-us__tips-link" href="https://promotions.valvolineglobal.com/tipsandtricks-en-es" target="_blank" rel="noopener">READ OUR TIPS &amp; TRICKS EN/ES</a>
+      `;
+      uploadField.after(tips);
+    }
+    this.#enhanceTurnstile(fields);
+
+    const textRoot = this.querySelector("uf-text-input")?.shadowRoot;
+    const styled = textRoot?.querySelector("input") && textRoot.querySelector("style[data-embed-id]");
+    if (styled && form.querySelector(".filepond--drop-label")) this.loader = false;
+  };
+
+  // Render in light DOM — without shadow DOM, styles live in <head>.
+  protected override createRenderRoot(): HTMLElement {
+    return this;
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    for (const [href, crossOrigin] of FONT_PRECONNECTS) injectPreconnect(href, crossOrigin);
+    for (const href of FONT_URLS) injectStylesheet(href);
+    if (!customElements.get("universal-form")) {
+      injectScript(UNIVERSAL_FORM_SRC, undefined, "module", () => this.#showLoadError());
+    }
+    this.addEventListener("uf-submit", this.#handleSubmit);
+    initAnalytics();
+    this.#stopScrollTracking = trackScrollDepth();
+    this.#watchCropModal();
+    installBlobImageFallback();
+    void fetchProgramSettings(this.programId, this.env).then(({ campaignWindow, captcha, failed }) => {
+      if (failed) {
+        this.#showLoadError();
+        return;
+      }
+      this.#captcha = captcha;
+      if (captcha) injectScript(TURNSTILE_SCRIPT_URL);
+      this.formConfig = { ...FORM_CONFIG, ...campaignWindow };
+    });
+    this.#enhanceTimer = window.setInterval(this.#enhanceForm, 250);
+  }
+
+  // The form's API or script is unreachable (blocked, offline, down): swap the
+  // spinner for the "Sorry!" screen instead of leaving the page empty.
+  #showLoadError(): void {
+    window.clearInterval(this.#enhanceTimer);
+    this.#submitError = "We couldn't load the form. Please reload the page or try again later.";
+    this.loader = false;
+    this.submitted = 2;
+    track("form_load_error");
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.removeEventListener("uf-submit", this.#handleSubmit);
+    window.clearInterval(this.#enhanceTimer);
+    this.#stopScrollTracking?.();
+    this.#uploadObserver?.disconnect();
+    this.#cropModalObserver?.disconnect();
+    if (this.#turnstileWidgetId !== undefined) window.turnstile?.remove(this.#turnstileWidgetId);
+  }
+
+  // Submitting (successfully or not) replaces the whole form with
+  // .thank-you — but the page itself stays scrolled to wherever the user was
+  // when they clicked submit, often well below the fold since the form can
+  // run long. Without this, the thank-you/error message renders off-screen
+  // and looks like nothing happened. Runs after Lit has actually painted the
+  // new state (updated(), not the submitted setter itself), so .thank-you
+  // exists in the DOM by the time we go looking for it.
+  protected override updated(changedProperties: PropertyValues<this>): void {
+    super.updated(changedProperties);
+    if (!changedProperties.has("submitted")) return;
+    if (this.submitted !== 1 && this.submitted !== 2) return;
+
+    const thankYou = this.querySelector<HTMLElement>(".thank-you");
+    if (!thankYou) return;
+
+    // 30px above .thank-you's own top, not flush against it — otherwise the
+    // heading lands right at the viewport edge.
+    const targetY = thankYou.getBoundingClientRect().top + window.scrollY - 30;
+    window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+  }
+
+  override render(): TemplateResult {
+    if (this.submitted === 1) {
+      return html`
+        <div class="probability-valvoline-oil-change-us">
+          <div class="thank-you">
+            <h2>THANK YOU!</h2>
+            <p>Your entry has been received. Good luck!</p>
+            <h2>GRACIAS!</h2>
+            <p>Ya recibimos tu inscripción. ¡Buena suerte!</p>
+          </div>
+        </div>
+      `;
+    }
+
+    if (this.submitted === 2) {
+      return html`
+        <div class="probability-valvoline-oil-change-us">
+          <div class="thank-you">
+            <h2>Sorry!</h2>
+            <p>${this.#submitError}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    return html`
+      <div class="probability-valvoline-oil-change-us">
+        <div
+          class="probability-valvoline-oil-change-us__loader"
+          style="display: ${this.loader ? "flex" : "none"}"
+        >
+          <span class="probability-valvoline-oil-change-us__spinner"></span>
+        </div>
+        ${this.formConfig
+          ? html`<universal-form
+              class=${this.loader ? "probability-valvoline-oil-change-us__form--loading" : ""}
+              config=${JSON.stringify(this.formConfig)}
+              .skeleton=${FORM_SKELETON}
+            ></universal-form>`
+          : nothing}
+      </div>
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "probability-valvoline-oil-change-us": ProbabilityValvolineOilChangeUs;
+  }
+}

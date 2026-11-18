@@ -1,0 +1,54 @@
+// =============================================================================
+// SNIPPET — Smarty dev middleware for vite.config.ts
+// `pnpm dev` runs Vite, not Express, so without this /api/address/* answers
+// with the demo page's HTML and the autocomplete silently shows nothing.
+// Paste each block at the anchor named in its header.
+// =============================================================================
+
+// --- [1] IMPORTS — top of vite.config.ts. Merge with what is already there: --
+// --- the boilerplate already imports `defineConfig` from "vite", so add -----
+// --- `type Plugin` to that same import instead of duplicating it. -----------
+import express from "express";
+import type { Plugin } from "vite";
+import type * as AddressController from "./server/controllers/address.js";
+
+// --- [2] PLUGIN — above `export default defineConfig(...)` -------------------
+// `pnpm dev` runs Vite, not the Express app in server/ — so /api/address/*
+// would 404 and the Street Address autocomplete would silently render no
+// suggestions. Mount the very same controller Express uses as dev middleware so
+// both entry points behave alike. The module is pulled through Vite's own TS
+// loader, and lazily, so editing it takes effect without restarting the server.
+function embedApiDevServer(): Plugin {
+  return {
+    name: "embed-api-dev",
+    apply: "serve",
+    configureServer(server) {
+      // Same as server/index.ts: local dev reads .env, production injects the
+      // Smarty credentials into the environment directly.
+      try {
+        process.loadEnvFile();
+      } catch {
+        // No .env on disk — the Smarty service reports it on the first lookup.
+      }
+
+      const app = express();
+      const address =
+        (name: keyof typeof AddressController): express.RequestHandler =>
+        (req, res, next) => {
+          void server
+            .ssrLoadModule("/server/controllers/address.ts")
+            .then((mod) => (mod as Record<string, express.RequestHandler>)[name](req, res, next))
+            .catch(next);
+        };
+
+      app.get("/api/address/search", address("search"));
+      app.get("/api/address/details", address("details"));
+      app.get("/api/address/autocomplete", address("autocomplete"));
+      app.get("/api/address/validate-country", address("validateCountry"));
+      server.middlewares.use(app);
+    },
+  };
+}
+
+// --- [3] REGISTER — inside defineConfig(({ command }) => ({ ... })) ----------
+//   plugins: [embedApiDevServer()],

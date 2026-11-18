@@ -27,7 +27,7 @@ if [ -z "$docker" ] || ! "$docker" info >/dev/null 2>&1; then
 fi
 
 # Same project name VS Code uses for this folder, so both reach the same container
-name=$(basename "$project" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-\n' '-')_devcontainer
+name=$(basename "$project" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_\n-' '-')_devcontainer
 compose() { "$docker" compose -p "$name" -f "$here/compose.yaml" -f "$here/compose.ports.yaml" "$@"; }
 
 running() {

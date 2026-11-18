@@ -1,0 +1,404 @@
+// =============================================================================
+// Embed component styles — template from the reference project, generalized.
+// Placeholder: {{PREFIX}}. Tokens marked FILL: come from the Figma design.
+// Regions (`// #region x` … `// #endregion x`) follow the same rule as the .ts
+// template: delete the whole region when its module doesn't apply.
+//
+// Rules that hold for every project:
+// - Every class is prefixed with the element name; everything is !important,
+//   because these styles live in the consumer's page next to its own CSS.
+// - Universal Form is themed through --uf-* variables; its inputs live in shadow
+//   roots and are styled from SHADOW_CSS (THEME tokens) in the .ts file.
+// - Structural blocks marked STRUCTURAL fix FilePond/host-page breakage: keep them
+//   as they are, only swap token values.
+// =============================================================================
+
+// --- Tokens — FILL: from the Figma design ------------------------------------
+$color-primary: #00316d; // buttons, focus, upload accents, selected option
+$color-primary-hover: #001f44;
+$color-text-on-page: #ffffff; // labels/copy over the page background
+$color-input-text: #616161;
+$color-input-border: #616161;
+$color-input-bg: #ffffff;
+$color-muted: #8a8c8e; // dropdown border, secondary copy
+$color-error: #f4e400;
+$color-upload-bg: #ffffff;
+$font-body: "Barlow", sans-serif;
+$font-heading: "Barlow Condensed", sans-serif;
+$radius-input: 4px;
+$radius-button: 0;
+$form-max-width: 820px;
+
+// --- Copy inside the upload box (receipt module) — FILL: from the brief ------
+// Max size: the campaign file field's `max_size` (MB) from get-form-fields.
+$upload-title: "CLICK TO UPLOAD RECEIPT";
+$upload-hint: "Click to upload or drag and drop JPG, JPEG, PNG, PDF, HEIC & HEIF (Max 30MB)";
+
+.{{PREFIX}} {
+  display: grid !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: $font-body !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+
+  // STRUCTURAL: kept in the layout (so FilePond can measure itself) but
+  // invisible until #enhanceForm has styled it; the spinner shows meanwhile.
+  &__form--loading {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  &__loader {
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 40vh !important;
+  }
+
+  &__spinner {
+    width: 48px !important;
+    height: 48px !important;
+    padding: 8px !important;
+    border-radius: 50% !important;
+    background: $color-primary !important;
+    --_m: conic-gradient(#0000 10%, #000), linear-gradient(#000 0 0) content-box !important;
+    -webkit-mask: var(--_m) !important;
+    mask: var(--_m) !important;
+    -webkit-mask-composite: source-out !important;
+    mask-composite: subtract !important;
+    animation: {{PREFIX}}-spin 1s infinite linear !important;
+  }
+
+  universal-form {
+    display: block !important;
+    width: 100% !important;
+    max-width: $form-max-width !important;
+    margin: 0 auto !important;
+    padding: 1.5rem 0 !important;
+    box-sizing: border-box !important;
+
+    @media (min-width: 768px) {
+      padding: 2.5rem 2rem !important;
+    }
+
+    --uf-font-family: #{$font-body} !important;
+    --uf-font-size: 16px !important;
+    --uf-color: #{$color-text-on-page} !important;
+    --uf-label-color: #{$color-text-on-page} !important;
+    --uf-hint-color: #{$color-text-on-page} !important;
+    --uf-required-color: #{$color-text-on-page} !important;
+    --uf-primary: #{$color-primary} !important;
+
+    --uf-input-bg: #{$color-input-bg} !important;
+    --uf-input-color: #{$color-input-text} !important;
+    --uf-input-border: #{$color-input-border} !important;
+    --uf-input-radius: #{$radius-input} !important;
+    --uf-placeholder-color: #{$color-input-text} !important;
+    --uf-focus-color: #{$color-primary} !important;
+    --uf-focus-ring: transparent !important;
+
+    // Select dropdown and its options — style them like the design's lists/menus.
+    --uf-option-color: #{$color-input-text} !important;
+    --uf-option-selected-bg: #{$color-primary} !important;
+    --uf-option-selected-color: #{$color-input-bg} !important;
+    --uf-option-hover-bg: #{$color-primary} !important;
+    --uf-dropdown-bg: #{$color-input-bg} !important;
+    --uf-dropdown-border: #{$color-muted} !important;
+
+    --uf-error-color: #{$color-error} !important;
+    --uf-error-border: #{$color-error} !important;
+    --uf-error-ring: #{rgba($color-error, 0.5)} !important;
+    --uf-error-size: 13px !important;
+
+    --uf-checkbox-accent: #{$color-primary} !important;
+    --uf-checkbox-desc-color: #{$color-text-on-page} !important;
+
+    --uf-upload-bg: #{$color-upload-bg} !important;
+    --uf-upload-border: #{$color-primary} !important;
+    --uf-upload-active-border: #{$color-primary} !important;
+    --uf-upload-label-color: #{$color-primary} !important;
+    --uf-upload-hint-color: #{$color-input-text} !important;
+    --uf-upload-icon-color: #{$color-primary} !important;
+    --uf-upload-browse-color: #{$color-primary} !important;
+    --uf-upload-alert-color: #{$color-error} !important;
+    --uf-upload-failed-color: #{$color-error} !important;
+
+    --uf-fields-gap: 11px !important;
+    --uf-grid-gap: 20px !important;
+
+    --uf-btn-bg: #{$color-primary} !important;
+    --uf-btn-color: #{$color-input-bg} !important;
+    --uf-btn-hover-bg: #{$color-primary-hover} !important;
+    --uf-btn-radius: #{$radius-button} !important;
+    --uf-btn-size: 18px !important;
+    --uf-btn-width: 100% !important;
+    --uf-submit-width: 100% !important;
+  }
+
+  // STRUCTURAL: the error is a <p> in the light DOM, so a host page that styles
+  // every `p` beats the --uf-error-* values. The repeated class raises
+  // specificity above the host's rules without naming its selectors.
+  &#{&}#{&} universal-form p.field-required-error {
+    color: $color-error !important;
+    font-family: $font-body !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
+  }
+
+  // STRUCTURAL (keep as is): a checkbox with an error shows no message under it;
+  // its label TEXT (links and * included) takes the error color — not the box,
+  // which stays as is. The message stays for screen readers only (visually
+  // hidden, role="alert" still announces it). The text lives in uf-checkbox's
+  // shadow root, so the color crosses in through Universal Form's own
+  // --uf-checkbox-label-color, set on uf-checkbox (beats the inherited value).
+  &#{&}#{&} universal-form .field-wrapper:has(> uf-checkbox) > p.field-required-error {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  universal-form .field-wrapper:has(> p.field-required-error) > uf-checkbox {
+    --uf-checkbox-label-color: #{$color-error};
+    --uf-checkbox-link-color: #{$color-error};
+    --uf-required-color: #{$color-error};
+  }
+
+  // Outside the campaign window: the form's own banner in place of the fields.
+  universal-form .state-banner {
+    align-items: center !important;
+    padding: 1.5rem 1rem !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: center !important;
+  }
+
+  universal-form .state-banner-title,
+  .thank-you h2 {
+    color: $color-text-on-page !important;
+    font-family: $font-heading !important;
+    font-weight: 700 !important;
+    font-size: 32px !important;
+    line-height: 1.1 !important;
+
+    @media (min-width: 768px) {
+      font-size: 44px !important;
+    }
+  }
+
+  universal-form .state-banner-description,
+  .thank-you p {
+    color: $color-text-on-page !important;
+    font-family: $font-heading !important;
+    font-size: 18px !important;
+    margin: 0 0 0.5rem !important;
+  }
+
+  .thank-you {
+    max-width: 640px !important;
+    margin: 0 auto !important;
+    padding: 1.5rem 1rem !important;
+    text-align: center !important;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 30px $color-input-bg inset !important;
+    -webkit-text-fill-color: $color-input-text !important;
+  }
+
+  // #region receipt
+  universal-form {
+    uf-image-upload {
+      display: block !important;
+      background: $color-upload-bg !important;
+      border-radius: 6px !important;
+      // STRUCTURAL: the padding keeps the picked file's card inside the dashed
+      // border; at 0 the card covers the border and the box looks broken.
+      padding: 16px !important;
+      box-sizing: border-box !important;
+    }
+
+    .filepond--root {
+      font-family: $font-body !important;
+      margin-bottom: 0 !important;
+    }
+
+    // STRUCTURAL: FilePond stretches the picked file's card with left/right 0 and
+    // no width of its own, so a host rule on `ul`/`li` shrinks it. Pin it.
+    .filepond--list-scroller,
+    .filepond--list,
+    .filepond--item {
+      position: absolute !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      float: none !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
+
+    .filepond--panel-root {
+      background: $color-upload-bg !important;
+      border: 2px dashed $color-primary !important;
+      border-radius: 4px !important;
+    }
+
+    // STRUCTURAL: only the panel root carries the border.
+    .filepond--panel-top,
+    .filepond--panel-center,
+    .filepond--panel-bottom {
+      background: transparent !important;
+      border: 0 !important;
+    }
+
+    .filepond--drop-label {
+      color: $color-primary !important;
+      min-height: 180px !important;
+    }
+
+    // Drop zone copy: FilePond's own label is hidden and replaced by the icon
+    // plus two lines ($upload-title / $upload-hint). Swap the icon for the
+    // design's if it has one; folder-arrow-up.svg ships with the skill.
+    .filepond--drop-label label {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      height: 100% !important;
+      box-sizing: border-box !important;
+      padding: 58px 20px 20px !important;
+      text-align: center !important;
+      cursor: pointer !important;
+      // Hides FilePond's own bare text node; the pseudo-elements set their own sizes.
+      font-size: 0 !important;
+      background: url("./folder-arrow-up.svg") center 22px / 36px no-repeat !important;
+
+      > * {
+        display: none !important;
+      }
+
+      &::before {
+        content: $upload-title !important;
+        font-family: $font-heading !important;
+        font-size: 24px !important;
+        font-weight: 700 !important;
+        color: $color-primary !important;
+        margin-bottom: 6px !important;
+      }
+
+      &::after {
+        content: $upload-hint !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: $color-input-text !important;
+      }
+
+      // STRUCTURAL: the box is a fixed 180px; on narrow screens the hint wraps,
+      // so smaller type and padding keep it inside the border at 320px.
+      @media (max-width: 480px) {
+        padding: 46px 12px 14px !important;
+        background-position: center 14px !important;
+
+        &::before {
+          font-size: 22px !important;
+          margin-bottom: 4px !important;
+        }
+
+        &::after {
+          font-size: 13px !important;
+          line-height: 1.3 !important;
+        }
+      }
+    }
+
+    // STRUCTURAL (keep as is): a picked image keeps FilePond's own preview: the
+    // cropped image with the file name, size and remove (×) button over it. Do
+    // not add a veil, check, "upload complete" text or any other layer on top,
+    // and do not hide the file name/size, even if the design shows a success state.
+
+    // STRUCTURAL (keep as is): a PDF is a file FilePond cannot draw. The
+    // component flags the field with data-file-kind="pdf" while it holds one;
+    // the default PDF artwork (pdf-preview.png, shipped with the skill) fills
+    // the box. `.filepond--panel.filepond--panel-root`, not just
+    // `.filepond--panel-root`: the top/center/bottom strips carry that class too.
+    uf-image-upload[data-file-kind="pdf"] {
+      .filepond--panel.filepond--panel-root {
+        background: $color-upload-bg url("./pdf-preview.png") center / cover no-repeat !important;
+        border: 0 !important;
+      }
+
+      .filepond--item-panel,
+      .filepond--file-info,
+      .filepond--file-status {
+        display: none !important;
+      }
+    }
+  }
+
+  &__upload-error {
+    margin: 6px 0 0 !important;
+    text-align: right !important;
+    color: $color-error !important;
+    font-family: $font-body !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+  // #endregion receipt
+
+  // #region captcha
+  // EI captcha box, mounted by #enhanceCaptcha above the submit button.
+  &__captcha {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin: 16px 0 0 !important;
+  }
+
+  &__captcha-message {
+    margin: 0 !important;
+    text-align: center !important;
+    color: $color-error !important;
+    font-family: $font-body !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+
+    &[hidden] {
+      display: none !important;
+    }
+  }
+  // #endregion captcha
+}
+
+// #region receipt
+// Crop modal. Universal Form appends it to document.body, OUTSIDE the component,
+// so it is styled here at the top level through its own classes. Only
+// `.uf-crop-overlay` and `.uf-crop-img` are known up front: open the modal in the
+// browser during the build, read its markup, and style its panel, buttons and
+// text with the design's tokens (see workflows/frontend-build.md, step "Design").
+.uf-crop-overlay {
+  font-family: $font-body !important;
+}
+// #endregion receipt
+
+@keyframes {{PREFIX}}-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
