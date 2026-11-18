@@ -43,8 +43,14 @@ $upload-hint: "Click to upload or drag and drop JPG, JPEG, PNG, PDF, HEIC & HEIF
   justify-content: center !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0 !important;
+  // Mobile: side gutter so the form, thank-you and errors don't touch the
+  // screen edges. From 768px the form's own padding takes over.
+  padding: 0 16px !important;
   font-family: $font-body !important;
+
+  @media (min-width: 768px) {
+    padding: 0 !important;
+  }
   box-sizing: border-box !important;
   position: relative !important;
 
