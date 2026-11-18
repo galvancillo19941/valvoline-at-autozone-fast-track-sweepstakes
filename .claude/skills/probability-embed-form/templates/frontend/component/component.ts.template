@@ -680,6 +680,18 @@ export class {{CLASS_NAME}} extends LitElement {
     return this;
   }
 
+  // Mobile side gutter, only when the host page gives the embed none: while the
+  // component touches a screen edge it carries data-edge-gutter and the SCSS
+  // adds 16px per side (mobile only). A page with its own padding gets nothing
+  // extra. The gutter is padding on the inner box, so it never moves the box
+  // being measured.
+  #syncEdgeGutter = (): void => {
+    const box = this.querySelector<HTMLElement>(".{{PREFIX}}") ?? this;
+    const rect = box.getBoundingClientRect();
+    const flush = rect.left < 1 || document.documentElement.clientWidth - rect.right < 1;
+    this.toggleAttribute("data-edge-gutter", flush);
+  };
+
   override connectedCallback(): void {
     super.connectedCallback();
     for (const [href, crossOrigin] of FONT_PRECONNECTS) injectPreconnect(href, crossOrigin);
@@ -692,6 +704,8 @@ export class {{CLASS_NAME}} extends LitElement {
     // #endregion submit
     initAnalytics(GA_MEASUREMENT_ID);
     this.#stopScrollTracking = trackScrollDepth();
+    window.addEventListener("resize", this.#syncEdgeGutter);
+    requestAnimationFrame(this.#syncEdgeGutter);
     // #region receipt
     this.#watchCropModal();
     installBlobImageFallback();
@@ -734,6 +748,7 @@ export class {{CLASS_NAME}} extends LitElement {
     // #endregion submit
     window.clearInterval(this.#enhanceTimer);
     this.#stopScrollTracking?.();
+    window.removeEventListener("resize", this.#syncEdgeGutter);
     // #region receipt
     this.#uploadObserver?.disconnect();
     this.#cropModalObserver?.disconnect();

@@ -34,6 +34,16 @@ $form-max-width: 820px;
 $upload-title: "CLICK TO UPLOAD RECEIPT";
 $upload-hint: "Click to upload or drag and drop JPG, JPEG, PNG, PDF, HEIC & HEIF (Max 30MB)";
 
+// STRUCTURAL (keep as is): mobile side gutter, only when the host page gives the
+// embed none. The component sets data-edge-gutter while it touches a screen edge
+// (#syncEdgeGutter in the .ts); a page with its own padding gets nothing extra.
+{{PREFIX}}[data-edge-gutter] > .{{PREFIX}} {
+  @media (max-width: 767px) {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
 .{{PREFIX}} {
   display: grid !important;
   align-items: center !important;

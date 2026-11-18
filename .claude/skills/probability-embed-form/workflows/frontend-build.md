@@ -214,6 +214,9 @@ With `pnpm dev` running, open the page with the browser tools:
 5. `receipt`: a JPG opens the cropper at full size, and after cropping the box shows the cropped
    image with its file name, size and ×, inside the dashed border, with nothing laid over it; a
    PDF shows the PDF artwork; a HEIC converts.
+5a. Mobile gutter: at 375px wide, with the demo page's `body` at `margin: 0; padding: 0`, the form
+   has 16px on each side (the element carries `data-edge-gutter`); give `body` a side padding
+   and the attribute and the extra 16px go away. No horizontal scroll either way.
 5b. Checkbox errors: submitting with a required checkbox unticked paints its label text in the
    error color (box unchanged) with no message under it; ticking it clears the color.
 6. `captcha`: the widget renders above the button; the submit button is **disabled** (50%
