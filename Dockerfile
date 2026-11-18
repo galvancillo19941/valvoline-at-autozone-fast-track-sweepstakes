@@ -1,13 +1,12 @@
 # syntax=docker/dockerfile:1
 #
-# Embeds template (debrain-ai-embeds-template): Lit bundle + Express demo/CDN.
-# Built on debrainpacks: https://github.com/debrain-dev/debrainpacks
+# Valvoline at AutoZone Fast Track Sweepstakes: Lit bundle + Express demo/CDN.
 
-ARG DEBRAINPACKS=ghcr.io/debrain-dev/debrainpacks
+ARG BASE_IMAGE=ghcr.io/debrain-dev/debrainpacks
 ARG NODE_VERSION=26
 
 # ── Build ──────────────────────────────────────────────────────────────────────
-FROM ${DEBRAINPACKS}:${NODE_VERSION}-builder AS build
+FROM ${BASE_IMAGE}:${NODE_VERSION}-builder AS build
 
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
@@ -24,7 +23,7 @@ RUN pnpm build
 RUN pnpm prune --prod && debrainpacks-prune node_modules
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
-FROM ${DEBRAINPACKS}:${NODE_VERSION}-runtime
+FROM ${BASE_IMAGE}:${NODE_VERSION}-runtime
 
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules

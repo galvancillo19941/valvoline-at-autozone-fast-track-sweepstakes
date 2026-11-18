@@ -41,7 +41,7 @@ Users only need **Docker and Claude Code**: Node 26, pnpm, Vite+ and every other
 
 ## Big picture
 
-This is a **boilerplate** for shipping embeddable Lit web components. The "product" of `pnpm build` is a self-contained bundle in two formats from the same entry: `embed.es.js` (loaded with `<script type="module">`) and `embed.iife.js` (classic `<script>`, for CMSs that don't allow ES modules; exports on `window.DebrainEmbeds`). A page must load only one of them — both register the same custom elements. The Express server is a **demo CDN** for testing — not the production hosting.
+This is a **boilerplate** for shipping embeddable Lit web components. The "product" of `pnpm build` is a self-contained bundle in two formats from the same entry: `embed.es.js` (loaded with `<script type="module">`) and `embed.iife.js` (classic `<script>`, for CMSs that don't allow ES modules; exports on `window.ValvolineEmbeds`). A page must load only one of them — both register the same custom elements. The Express server is a **demo CDN** for testing — not the production hosting.
 
 Three patterns are spread across multiple files and easy to break if you don't understand them:
 
@@ -73,16 +73,16 @@ The marker regex is strict — do not change its whitespace or attribute order. 
 
 `assetsInlineLimit: 100_000_000` in [vite.config.ts](vite.config.ts) forces Vite to inline **every** asset import (svg, png, jpg, webp, etc.) as a base64 data URL inside the JS. Combined with `cssCodeSplit: false`, the result is a single `.js` file with no external dependencies — the contract that lets the embed drop into any third-party page.
 
-If you find yourself emitting separate asset files from `src/`, you've broken this guarantee. The convention is: **component-local images go next to the `.ts` file** (e.g. `src/components/counter/icon.svg`) and are imported with `import iconUrl from "./icon.svg"`.
+If you find yourself emitting separate asset files from `src/`, you've broken this guarantee. The convention is: **component-local images go next to the `.ts` file** (e.g. `src/components/valvoline-at-autozone-fast-track-sweepstakes/folder-arrow-up.svg`) and are imported with `import iconUrl from "./folder-arrow-up.svg"`.
 
 ## Light DOM, not shadow DOM
 
 Components **must** override `createRenderRoot()` to return `this`. Styles cannot live in the Lit `static styles` slot (that's shadow-DOM only). The convention is:
 
 1. Put styles in `<name>.scss` next to the component.
-2. Import them with `?inline`: `import styles from "./counter.scss?inline"`.
+2. Import them with `?inline`: `import styles from "./valvoline-at-autozone-fast-track-sweepstakes.scss?inline"`.
 3. Call `injectStyles("<tag-name>", styles)` at module scope — see [src/lib/inject-styles.ts](src/lib/inject-styles.ts). This appends a `<style data-embed-id="<tag-name>">` to `document.head` exactly once per component.
-4. **Prefix every CSS class with the custom element name** (BEM-style: `.debrain-counter`, `.debrain-counter__btn`). Since styles live in the host document, unprefixed classes will collide with the consumer's page.
+4. **Prefix every CSS class with the custom element name** (BEM-style: `.valvoline-at-autozone-fast-track-sweepstakes`, `.valvoline-at-autozone-fast-track-sweepstakes__section-heading`). Since styles live in the host document, unprefixed classes will collide with the consumer's page.
 
 To register a new component in the bundle, add its import to [src/embed.ts](src/embed.ts).
 
@@ -98,7 +98,7 @@ When adding origins your components need to talk to in production, edit `domains
 
 ## Deploy (Docker, Node 26)
 
-Deploy **only with Docker Compose**: [docker-compose.yml](docker-compose.yml) (Coolify "Docker Compose" build pack; domain on the `embeds` service, port 3000; `expose`, no host port) builds the [Dockerfile](Dockerfile). `docker-compose.override.yml` is local only (publishes `127.0.0.1:${PORT:-3000}`). The Dockerfile is built on [debrainpacks](https://github.com/debrain-dev/debrainpacks): the `ghcr.io/debrain-dev/debrainpacks:26-builder` stage runs `pnpm fetch` → copies the repo → `pnpm install --offline` → `pnpm build` → `pnpm prune --prod` + `debrainpacks-prune`; the `:26-runtime` stage copies `node_modules`, `server/`, `domains.config.json` and `dist/`, runs as non-root and starts `node --import tsx server/index.ts`. The healthcheck comes from the base image (`HEALTHCHECK_PATH=/embed/embed.es.js`).
+Deploy **only with Docker Compose**: [docker-compose.yml](docker-compose.yml) (Coolify "Docker Compose" build pack; domain on the `embeds` service, port 3000; `expose`, no host port) builds the [Dockerfile](Dockerfile). `docker-compose.override.yml` is local only (publishes `127.0.0.1:${PORT:-3000}`). The Dockerfile's base image is `BASE_IMAGE` (`ghcr.io/debrain-dev/debrainpacks`): the `:26-builder` stage runs `pnpm fetch` → copies the repo → `pnpm install --offline` → `pnpm build` → `pnpm prune --prod` + `debrainpacks-prune`; the `:26-runtime` stage copies `node_modules`, `server/`, `domains.config.json` and `dist/`, runs as non-root and starts `node --import tsx server/index.ts`. The healthcheck comes from the base image (`HEALTHCHECK_PATH=/embed/embed.es.js`).
 
 - Node 26 is required (`.nvmrc`, `engines`). Locally, install pnpm 9 globally (Node 25+ doesn't bundle corepack).
 - If `server/index.ts` starts reading a new file at runtime, add a `COPY` for it to the runtime stage.

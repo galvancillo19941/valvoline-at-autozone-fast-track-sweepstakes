@@ -67,11 +67,11 @@ export default defineConfig(({ command }) => ({
     // Two bundles from the same entry:
     //  - embed.es.js   → <script type="module">
     //  - embed.iife.js → classic <script>, for CMSs that don't allow ES modules.
-    //    Its exports are exposed as window.DebrainEmbeds.
+    //    Its exports are exposed as window.ValvolineEmbeds.
     lib: {
       entry: resolve(__dirname, "src/embed.ts"),
       formats: ["es", "iife"],
-      name: "DebrainEmbeds",
+      name: "ValvolineEmbeds",
       fileName: (format) => `embed.${format}.js`,
     },
     rollupOptions: {

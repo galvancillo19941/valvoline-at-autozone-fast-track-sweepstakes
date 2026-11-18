@@ -1,8 +1,8 @@
 {
-  "name": "debrain-ai-embeds-template",
+  "name": "valvoline-at-autozone-fast-track-sweepstakes",
   "version": "0.1.0",
   "private": true,
-  "description": "Boilerplate for building embeddable web components with Lit (no shadow DOM), SCSS, Vite, and Express.",
+  "description": "Valvoline at AutoZone Fast Track Sweepstakes entry form as an embeddable web component (Lit, light DOM, Vite, Express).",
   "type": "module",
   "scripts": {
     "dev": "vite",

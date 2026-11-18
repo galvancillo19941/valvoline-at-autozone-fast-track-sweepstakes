@@ -177,6 +177,9 @@ Class name = PascalCase of the prefix.
    design has its own upload icon, put that file there instead and update the `url()` in the SCSS.
 7. Register it in `src/embed.ts` (import + export) and use the tag in `index.html` and
    `example/index.html`, with the design's page background on `body`.
+7b. Favicon (always): copy `assets/favicon.ico` → `public/favicon.ico`, delete any other favicon in
+   `public/` (e.g. `favicon.png`), and set in the `<head>` of `index.html` and `example/index.html`:
+   `<link rel="icon" type="image/x-icon" href="/favicon.ico" />` (replacing any existing icon link).
 8. CSP (`domains.config.json`): add `https://entryintelligence.helloprobability.io` if `captcha`
    is kept, and the consumer page's origin from the brief (Embed/Microsite URL).
 

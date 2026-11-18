@@ -83,6 +83,6 @@ app.use(express.static(distDir));
 
 app.listen(port, () => {
   console.log(
-    `\n  Debrain Embeds server\n  Demo:   http://localhost:${port}/\n  Bundle: http://localhost:${port}/embed/embed.es.js\n`,
+    `\n  Valvoline at AutoZone Fast Track Sweepstakes — embed server\n  Demo:   http://localhost:${port}/\n  Bundle: http://localhost:${port}/embed/embed.es.js\n`,
   );
 });
